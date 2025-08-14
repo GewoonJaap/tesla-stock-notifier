@@ -1,40 +1,50 @@
-/**
- * Welcome to Cloudflare Workers!
- *
- * This is a template for a Scheduled Worker: a Worker that can run on a
- * configurable interval:
- * https://developers.cloudflare.com/workers/platform/triggers/cron-triggers/
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Run `curl "http://localhost:8787/__scheduled?cron=*+*+*+*+*"` to see your Worker in action
- * - Run `npm run deploy` to publish your Worker
- *
- * Bind resources to your Worker in `wrangler.jsonc`. After adding bindings, a type definition for the
- * `Env` object can be regenerated with `npm run cf-typegen`.
- *
- * Learn more at https://developers.cloudflare.com/workers/
- */
+import { getTeslaInventory } from './tesla';
+import { sendNtfyNotification } from './ntfy';
+import { isVinNew, storeVin } from './store';
+
+interface Env {
+	TESLA_VIN_STORE: KVNamespace;
+	NTFY_URL: string;
+	TESLA_API_URL: string;
+}
 
 export default {
-	async fetch(req) {
-		const url = new URL(req.url);
-		url.pathname = '/__scheduled';
-		url.searchParams.append('cron', '* * * * *');
-		return new Response(`To test the scheduled handler, ensure you have used the "--test-scheduled" then try running "curl ${url.href}".`);
-	},
+	async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+		console.log(`[${event.cron}] Worker started.`);
 
-	// The scheduled handler is invoked at the interval set in our wrangler.jsonc's
-	// [[triggers]] configuration.
-	async scheduled(event, env, ctx): Promise<void> {
-		// A Cron Trigger can make requests to other endpoints on the Internet,
-		// publish to a Queue, query a D1 Database, and much more.
-		//
-		// We'll keep it simple and make an API call to a Cloudflare API:
-		let resp = await fetch('https://api.cloudflare.com/client/v4/ips');
-		let wasSuccessful = resp.ok ? 'success' : 'fail';
+		try {
+			console.log(`[${event.cron}] Fetching Tesla inventory from: ${env.TESLA_API_URL}`);
+			const cars = await getTeslaInventory(env.TESLA_API_URL);
+			console.log(`[${event.cron}] Found ${cars.length} cars in inventory.`);
 
-		// You could store this result in KV, write to a D1 Database, or publish to a Queue.
-		// In this template, we'll just log the result:
-		console.log(`trigger fired at ${event.cron}: ${wasSuccessful}`);
+			if (cars.length === 0) {
+				console.log(`[${event.cron}] No cars found, skipping VIN check.`);
+				return;
+			}
+
+			for (const car of cars) {
+				const { VIN } = car;
+				console.log(`[${event.cron}] Checking VIN: ${VIN}`);
+				const newVin = await isVinNew(env.TESLA_VIN_STORE, VIN);
+
+				if (newVin) {
+					console.log(`[${event.cron}] New VIN found: ${VIN}. Storing and sending notification.`);
+					await storeVin(env.TESLA_VIN_STORE, VIN);
+					await sendNtfyNotification(env.NTFY_URL, `New Tesla in stock: ${VIN}`);
+					console.log(`[${event.cron}] Notification sent for VIN: ${VIN}`);
+				} else {
+					console.log(`[${event.cron}] VIN already exists: ${VIN}. Skipping notification.`);
+				}
+			}
+			console.log(`[${event.cron}] Worker finished successfully.`);
+		} catch (error) {
+			console.error(`[${event.cron}] Error in scheduled task:`, error);
+			// Optionally send an error notification
+			if (error instanceof Error) {
+				await sendNtfyNotification(env.NTFY_URL, `Error in Tesla Stock Notifier: ${error.message}`);
+			} else {
+				await sendNtfyNotification(env.NTFY_URL, `An unknown error occurred in Tesla Stock Notifier.`);
+			}
+		}
 	},
-} satisfies ExportedHandler<Env>;
+};

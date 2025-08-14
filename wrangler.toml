@@ -1,0 +1,10 @@
+name = "tesla-stock-notifier"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[triggers]
+crons = ["* * * * *"]
+
+[[kv_namespaces]]
+binding = "TESLA_VIN_STORE"
+id = "f116f12f81fe462ab124f8ca80fe7468"
