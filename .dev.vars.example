@@ -1,2 +1,3 @@
 NTFY_URL="<YOUR_NTFY_URL>"
-TESLA_API_URL="https://www.tesla.com/inventory/api/v4/inventory-results// HERE YOUR URL
+TESLA_API_URL="https://www.tesla.com/inventory/api/v4/inventory-results // HERE YOUR URL
+NTFY_BEARER_TOKEN="<YOUR_NTFY_BEARER_TOKEN>"
