@@ -18,8 +18,16 @@ export async function sendNtfyNotification(ntfyUrl: string, car: Car, bearerToke
 	const imageUrl = getCarImageUrl(car);
 	const body = {
 		topic: 'tesla',
-		message: `New Tesla ${car.TrimName} available!`,
-		title: `New Tesla in Stock: ${car.VIN}`,
+		message: `
+New Tesla ${car.TrimName} available!
+Year: ${car.Year}
+Odometer: ${car.Odometer} ${car.OdometerTypeShort}
+Discount: ${car.CurrencyCode} ${car.Discount}
+
+Options:
+${car.OptionCodeData.map((option) => `- ${option.name}: ${option.description}`).join('\n')}
+`,
+		title: `New Tesla in Stock: ${car.VIN} - ${car.Model} ${car.TrimName}`,
 		icon: imageUrl,
 		attach: imageUrl,
 		actions: [
