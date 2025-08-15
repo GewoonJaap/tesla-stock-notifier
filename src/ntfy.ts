@@ -25,16 +25,19 @@ Odometer: ${car.Odometer} ${car.OdometerTypeShort}
 Discount: ${car.CurrencyCode} ${car.Discount}
 
 Options:
-${car.OptionCodeData.map((option) => `- ${option.name}: ${option.description}`).join('\n')}
+${car.OptionCodeData.slice(0, 5)
+	.map((option) => `- ${option.name}: ${option.description}`)
+	.join('\n')}
+${car.OptionCodeData.length > 5 ? `\n...and ${car.OptionCodeData.length - 5} more options.` : ''}
 `,
-		title: `New Tesla in Stock: ${car.VIN} - ${car.Model} ${car.TrimName}`,
+		title: `New Tesla in Stock: ${car.Model} ${car.TrimName} (${car.Year})`,
 		icon: imageUrl,
 		attach: imageUrl,
 		actions: [
 			{
 				action: 'view',
 				label: 'View Car',
-				url: `https://www.tesla.com/nl_nl/my/order/${car.VIN}`,
+				url: `https://www.tesla.com/nl_nl/${car.Model}/order/${car.VIN}`,
 			},
 		],
 	};
