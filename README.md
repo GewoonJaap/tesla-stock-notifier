@@ -1,2 +1,1 @@
 # tesla-stock-notifier
-

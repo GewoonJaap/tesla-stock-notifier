@@ -1,14 +1,7 @@
 import { Hono } from 'hono';
 import { getTeslaInventory } from './tesla';
 import { sendNtfyNotification } from './ntfy';
-import { isVinNew, storeVin } from './store';
-
-interface Env {
-	TESLA_VIN_STORE: KVNamespace;
-	NTFY_URL: string;
-	TESLA_API_URL: string;
-	NTFY_BEARER_TOKEN: string;
-}
+import { isVinNew, storeVin, cleanupOldVins } from './store';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -26,6 +19,7 @@ async function scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext)
 	console.log(`[${event.cron}] Worker started.`);
 
 	try {
+		await cleanupOldVins(env.TESLA_VIN_STORE);
 		console.log(`[${event.cron}] Fetching Tesla inventory from: ${env.TESLA_API_URL}`);
 		const teslaResponse = await getTeslaInventory(env.TESLA_API_URL);
 		const cars = teslaResponse.results;
@@ -41,9 +35,9 @@ async function scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext)
 			console.log(`[${event.cron}] Checking VIN: ${VIN}`);
 			const newVin = await isVinNew(env.TESLA_VIN_STORE, VIN);
 
+			await storeVin(env.TESLA_VIN_STORE, VIN);
 			if (newVin) {
 				console.log(`[${event.cron}] New VIN found: ${VIN}. Storing and sending notification.`);
-				await storeVin(env.TESLA_VIN_STORE, VIN);
 				await sendNtfyNotification(env.NTFY_URL, car, env.NTFY_BEARER_TOKEN);
 				console.log(`[${event.cron}] Notification sent for VIN: ${VIN}`);
 			} else {
