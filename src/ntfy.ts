@@ -1,4 +1,5 @@
 import { Car } from './types/tesla';
+import { normalizeModelCode } from './tesla';
 
 function getCarImageUrl(car: Car): string {
 	const baseUrl = 'https://static-assets.tesla.com/configurator/compositor';
@@ -14,24 +15,33 @@ function getCarImageUrl(car: Car): string {
 	return `${baseUrl}?${params.toString()}`;
 }
 
-export async function sendNtfyNotification(ntfyUrl: string, car: Car, bearerToken: string): Promise<void> {
-	const imageUrl = getCarImageUrl(car);
-	const body = {
-		topic: 'tesla',
-		message: `
+function generateNtfyMessage(car: Car): string {
+	const optionsText = car.OptionCodeData.slice(0, 5)
+		.filter((option) => option.name)
+		.map((option) => `- ${option.name}`)
+		.join('\n');
+	const moreOptionsText = car.OptionCodeData.length > 5 ? `\n...and ${car.OptionCodeData.length - 5} more options.` : '';
+
+	return `
 New Tesla ${car.TrimName} available!
 Year: ${car.Year}
 Odometer: ${car.Odometer} ${car.OdometerTypeShort}
 Discount: ${car.CurrencyCode} ${car.Discount}
 
 Options:
-${car.OptionCodeData.slice(0, 5)
-	.filter((option) => option.name)
-	.map((option) => `- ${option.name}`)
-	.join('\n')}
-${car.OptionCodeData.length > 5 ? `\n...and ${car.OptionCodeData.length - 5} more options.` : ''}
-`,
-		title: `New Tesla in Stock: ${car.Model} ${car.TrimName} (${car.Year})`,
+${optionsText}${moreOptionsText}
+`;
+}
+
+export async function sendNtfyNotification(ntfyUrl: string, car: Car, bearerToken: string): Promise<void> {
+	const imageUrl = getCarImageUrl(car);
+	const message = generateNtfyMessage(car);
+	const title = `New Tesla in Stock: ${normalizeModelCode(car.Model)} ${car.TrimName} (${car.Year})`;
+
+	const body = {
+		topic: 'tesla',
+		message: message,
+		title: title,
 		icon: imageUrl,
 		attach: imageUrl,
 		actions: [
