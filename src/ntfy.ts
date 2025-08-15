@@ -26,6 +26,7 @@ Discount: ${car.CurrencyCode} ${car.Discount}
 
 Options:
 ${car.OptionCodeData.slice(0, 5)
+	.filter((option) => option.name)
 	.map((option) => `- ${option.name}`)
 	.join('\n')}
 ${car.OptionCodeData.length > 5 ? `\n...and ${car.OptionCodeData.length - 5} more options.` : ''}
