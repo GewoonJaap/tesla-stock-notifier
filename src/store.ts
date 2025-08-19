@@ -4,8 +4,23 @@ export async function isVinNew(kvNamespace: KVNamespace, vin: string): Promise<b
 }
 
 export async function storeVin(kvNamespace: KVNamespace, vin: string): Promise<void> {
-	const now = new Date().toISOString();
-	await kvNamespace.put(vin, now);
+	const now = new Date();
+	const existingVinDateStr = await kvNamespace.get(vin);
+	let shouldUpdate = false;
+	if (existingVinDateStr) {
+		const existingVinDate = new Date(existingVinDateStr);
+		// If the VIN date is older than 23 hours, update (expiry is 24h)
+		const twentyThreeHoursAgo = new Date(now.getTime() - 23 * 60 * 60 * 1000);
+		if (existingVinDate < twentyThreeHoursAgo) {
+			shouldUpdate = true;
+		}
+	} else {
+		// If no date exists, always update
+		shouldUpdate = true;
+	}
+	if (shouldUpdate) {
+		await kvNamespace.put(vin, now.toISOString());
+	}
 }
 
 export async function cleanupOldVins(kvNamespace: KVNamespace): Promise<void> {
