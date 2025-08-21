@@ -3,7 +3,7 @@ main = "src/index.ts"
 compatibility_date = "2024-09-23"
 
 [triggers]
-crons = ["* * * * *"]
+crons = ["*/30 * * * *"]
 
 [[kv_namespaces]]
 binding = "TESLA_VIN_STORE"
